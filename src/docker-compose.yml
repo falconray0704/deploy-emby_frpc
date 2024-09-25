@@ -1,0 +1,59 @@
+version: '3'
+services:
+  emby_app:
+    image: lscr.io/linuxserver/emby:${EMBY_VERSION:-4.8.8}
+    container_name: "${SERVER_NAME}_app"
+    restart: unless-stopped
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+    volumes:
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${EMBY_DATAS_ROOT_DIR}/${EMBY_DATAS_CONTAINER_DIR}/libray:/config
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${EMBY_DATAS_ROOT_DIR}/${EMBY_DATAS_CONTAINER_DIR}/tvshows:/data/tvshows
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${EMBY_DATAS_ROOT_DIR}/${EMBY_DATAS_CONTAINER_DIR}/movies:/data/movies
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${EMBY_DATAS_ROOT_DIR}/${EMBY_DATAS_CONTAINER_DIR}/opt/vc/lib:/opt/vc/lib
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${EMBY_DATAS_ROOT_DIR}/${EMBY_DATAS_MEDIAS_DIR}:/emby_medias
+      - /mnt/mhd500/emby_medias/rayVideos:/emby_medias/rayVideos:ro
+        #      - /mnt/bf00:/emby_medias/bf00:ro
+        #      - /mnt/bf01:/emby_medias/bf01:ro
+        #      - /mnt/hd500_1:/emby_medias/hd500_1:ro
+        #      - ${MEDIA_DATA:-./emby_app/datas}/emby_medias/kids:/emby_medias/kids:ro
+        #      - ${MEDIA_DATA_hd500_1:-./emby_app/datas}/emby_medias/kids:/emby_medias/kids01:ro
+        #      - ${MEDIA_DATA:-./emby_app/datas}/media_center:/media_center:ro
+    networks:
+      - frpc_emby
+    ports:
+      - 8096:8096
+      - 8920:8920 #optional
+        #    devices:
+        #      - /dev/dri:/dev/dri #optional, for AMD GPU
+        #      - /dev/vchiq:/dev/vchiq #optional, for Pi
+        #      - /dev/video10:/dev/video10 #optional, for Pi
+        #      - /dev/video11:/dev/video11 #optional, for Pi
+        #      - /dev/video12:/dev/video12 #optional, for Pi
+
+  frpc:
+    image: "rayruan/frp:${FRP_IMAGE_TAG:-0.60.0}"
+    container_name: "${SERVER_NAME}"
+    depends_on:
+      - emby_app
+    environment:
+      - PUID=1000
+      - PGID=1000
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${CFGS_DIR}/frpc.toml:/etc/frp/frpc.toml:ro
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/frpc_entrypoint.sh:/app/frpc_entrypoint.sh:ro
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${CERTIFICATES_DIR}/client.crt:/client.crt:ro
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${CERTIFICATES_DIR}/client.key:/client.key:ro
+      - ${INSTALL_ROOT_PATH}/${SERVER_NAME}/${CERTIFICATES_DIR}/rootCA.crt:/ca.crt:ro
+    networks:
+      - frpc_emby
+    entrypoint: /app/frpc_entrypoint.sh
+    restart: always
+   
+networks:
+  frpc_emby:
+    name: "${SERVER_NAME}"
